@@ -44,7 +44,7 @@ jobs:
              if (!d || !nodes || !bus || !info)
                 return -12;
              nodes[NODE_PRIMARY] = strdup("/dev/dri/card0");
-                          { const char *p = getenv("DRMSHIM_RENDER"); nodes[NODE_RENDER] = strdup(p ? p : "/dev/dri/card0"); }
+                          { const char *p = getenv("DRMSHIM_RENDER"); nodes[NODE_RENDER] = strdup(p ? p : "/dev/mali0"); }
              strcpy(bus->fullname, "mali");
              d->nodes = nodes;
              d->available_nodes = (1 << NODE_PRIMARY) | (1 << NODE_RENDER);
