@@ -1,0 +1,68 @@
+name: build-drm-shim
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Write the helper source
+        run: |
+          cat > drmshim.c <<'EOF'
+          #include <stdlib.h>
+          #include <string.h>
+          #include <stdint.h>
+          #include <sys/types.h>
+          #include <sys/sysmacros.h>
+
+          #define NODE_MAX 3
+          #define NODE_PRIMARY 0
+          #define NODE_RENDER 2
+          #define BUS_PLATFORM 2
+
+          typedef struct { char fullname[512]; } PlatformBusInfo;
+          typedef struct { char **compatible; } PlatformDeviceInfo;
+
+          typedef struct {
+             char **nodes;
+             int available_nodes;
+             int bustype;
+             union { void *pci; void *usb; PlatformBusInfo *platform; void *host1x; } businfo;
+             union { void *pci; void *usb; PlatformDeviceInfo *platform; void *host1x; } deviceinfo;
+          } FakeDrmDevice;
+
+          int drmGetDeviceFromDevId(dev_t dev_id, uint32_t flags, FakeDrmDevice **device)
+          {
+             (void)flags;
+             if (!device || major(dev_id) != 226)
+                return -22;
+             FakeDrmDevice *d = calloc(1, sizeof(*d));
+             char **nodes = calloc(NODE_MAX, sizeof(char *));
+             PlatformBusInfo *bus = calloc(1, sizeof(*bus));
+             PlatformDeviceInfo *info = calloc(1, sizeof(*info));
+             if (!d || !nodes || !bus || !info)
+                return -12;
+             nodes[NODE_PRIMARY] = strdup("/dev/dri/card0");
+             nodes[NODE_RENDER] = strdup("/dev/dri/renderD128");
+             strcpy(bus->fullname, "mali");
+             d->nodes = nodes;
+             d->available_nodes = (1 << NODE_PRIMARY) | (1 << NODE_RENDER);
+             d->bustype = BUS_PLATFORM;
+             d->businfo.platform = bus;
+             d->deviceinfo.platform = info;
+             *device = d;
+             return 0;
+          }
+          EOF
+
+      - name: Compile
+        run: |
+          gcc -O2 -fPIC -shared -Wall -o libdrmshim.so drmshim.c
+          ls -l libdrmshim.so
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: drmshim
+          path: libdrmshim.so
