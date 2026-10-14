@@ -23,6 +23,24 @@ jobs:
           pip3 install --user --break-system-packages "meson>=1.4.0"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      - name: Build newer SPIRV-Tools (Ubuntu's version is too old)
+        run: |
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Headers.git spirv-headers
+          git clone --depth 1 https://github.com/KhronosGroup/SPIRV-Tools.git spirv-tools
+          cmake -S spirv-headers -B spirv-headers/build -G Ninja -DCMAKE_INSTALL_PREFIX="$HOME/spv"
+          cmake --install spirv-headers/build
+          cmake -S spirv-tools -B spirv-tools/build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$HOME/spv" \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DSPIRV-Headers_SOURCE_DIR="$PWD/spirv-headers" \
+            -DSPIRV_SKIP_TESTS=ON \
+            -DSPIRV_WERROR=OFF
+          cmake --build spirv-tools/build
+          cmake --install spirv-tools/build
+          echo "PKG_CONFIG_PATH=$HOME/spv/lib/pkgconfig:$HOME/spv/share/pkgconfig" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$HOME/spv/lib" >> "$GITHUB_ENV"
+
       - name: Get source (FristOneRR PanVK, tag v1.2.0-beta)
         run: git clone --depth 1 --branch v1.2.0-beta https://github.com/FristOneRR-Admin/FristOneRR-Panvk-Source src
 
