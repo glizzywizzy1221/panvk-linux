@@ -1,0 +1,16 @@
+name: inspect-panvk-source
+
+on:
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Get source
+        run: git clone --depth 1 --branch v1.2.0-beta https://github.com/FristOneRR-Admin/FristOneRR-Panvk-Source src
+
+      - name: Find where PanVK fills in the display device info
+        run: |
+          cd src
+          grep -rnIE "drmHasRender|drmRenderMajor|drmHasPrimary|render_rdev|primary_rdev" src/panfrost | head -80
