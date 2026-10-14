@@ -44,6 +44,41 @@ jobs:
       - name: Get source (FristOneRR PanVK, tag v1.2.0-beta)
         run: git clone --depth 1 --branch v1.2.0-beta https://github.com/FristOneRR-Admin/FristOneRR-Panvk-Source src
 
+      - name: Create stub liblog (Android logging library does not exist on Linux)
+        run: |
+          mkdir -p "$HOME/stub/lib"
+          cat > "$HOME/stub/log_stub.c" <<'EOF'
+          #include <stdarg.h>
+          #include <stdio.h>
+          #include <stdlib.h>
+          int __android_log_vprint(int prio, const char *tag, const char *fmt, va_list ap) {
+            if (getenv("ANDROID_LOG_STDERR")) {
+              fprintf(stderr, "[%s] ", tag ? tag : "log");
+              vfprintf(stderr, fmt, ap);
+              fputc('\n', stderr);
+            }
+            return 0;
+          }
+          int __android_log_print(int prio, const char *tag, const char *fmt, ...) {
+            va_list ap;
+            va_start(ap, fmt);
+            __android_log_vprint(prio, tag, fmt, ap);
+            va_end(ap);
+            return 0;
+          }
+          int __android_log_write(int prio, const char *tag, const char *text) {
+            if (getenv("ANDROID_LOG_STDERR"))
+              fprintf(stderr, "[%s] %s\n", tag ? tag : "log", text ? text : "");
+            return 0;
+          }
+          void __android_log_assert(const char *cond, const char *tag, const char *fmt, ...) {
+            abort();
+          }
+          EOF
+          clang-18 -O2 -fPIC -c "$HOME/stub/log_stub.c" -o "$HOME/stub/log_stub.o"
+          ar rcs "$HOME/stub/lib/liblog.a" "$HOME/stub/log_stub.o"
+          echo "LIBRARY_PATH=$HOME/stub/lib" >> "$GITHUB_ENV"
+
       - name: Configure
         working-directory: src
         env:
