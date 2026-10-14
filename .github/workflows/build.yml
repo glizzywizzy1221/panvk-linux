@@ -43,7 +43,18 @@ jobs:
 
       - name: Get source (FristOneRR PanVK, tag v1.2.0-beta)
         run: git clone --depth 1 --branch v1.2.0-beta https://github.com/FristOneRR-Admin/FristOneRR-Panvk-Source src
-
+        
+      - name: Patch - report a render node
+        working-directory: src
+        run: |
+          F=src/panfrost/vulkan/panvk_vX_physical_device.c
+          sed -i 's/if (device->drm.primary_rdev) {/if (1) {/' $F
+          sed -i 's/major(device->drm.primary_rdev)/226/; s/minor(device->drm.primary_rdev)/0/' $F
+          sed -i 's/if (device->drm.render_rdev) {/if (1) {/' $F
+          sed -i 's/major(device->drm.render_rdev)/226/; s/minor(device->drm.render_rdev)/128/' $F
+          git diff $F
+          if git diff --quiet $F; then echo "PATCH DID NOT APPLY"; exit 1; fi
+          
       - name: Create stub liblog (Android logging library does not exist on Linux)
         run: |
           mkdir -p "$HOME/stub/lib"
