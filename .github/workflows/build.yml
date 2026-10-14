@@ -55,6 +55,14 @@ jobs:
           git diff $F
           if git diff --quiet $F; then echo "PATCH DID NOT APPLY"; exit 1; fi
           
+      - name: Patch - turn off host memory import
+        working-directory: src
+        run: |
+          F=src/panfrost/vulkan/panvk_vX_physical_device.c
+          sed -i 's/\.EXT_external_memory_host = true,/.EXT_external_memory_host = false,/' $F
+          git diff $F | grep external_memory_host
+          if ! git diff $F | grep -q 'external_memory_host = false'; then echo "PATCH DID NOT APPLY"; exit 1; fi
+          
       - name: Create stub liblog (Android logging library does not exist on Linux)
         run: |
           mkdir -p "$HOME/stub/lib"
