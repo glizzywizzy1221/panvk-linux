@@ -10,9 +10,14 @@ jobs:
       - name: Get source
         run: git clone --depth 1 --branch v1.2.0-beta https://github.com/FristOneRR-Admin/FristOneRR-Panvk-Source src
 
-      - name: Find the HOSTIMP code
+      - name: Look for the host memory feature
         run: |
           cd src
-          grep -rnI -C25 "HOSTIMP" src/panfrost | head -150
-          echo "=========== MEM_IMPORT mentions"
-          grep -rnI "MEM_IMPORT" src/panfrost | head -20
+          echo "=========== function name around the import"
+          sed -n '1585,1604p' src/panfrost/lib/kmod/kbase_kmod.c
+          echo "=========== has_import_memory_host"
+          grep -rnI "has_import_memory_host" src/panfrost src/vulkan/wsi | head -20
+          echo "=========== external_memory_host in panvk"
+          grep -rnI "external_memory_host\|EXT_external_memory_host" src/panfrost | head -30
+          echo "=========== who calls the import"
+          grep -rnI "import_host\|host_ptr" src/panfrost/vulkan src/panfrost/lib/kmod/pan_kmod.h | head -30
