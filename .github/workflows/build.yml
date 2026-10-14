@@ -1,0 +1,77 @@
+name: build-panvk-linux
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git gcc g++ cmake ninja-build pkg-config bison flex \
+            python3-pip python3-mako python3-yaml python3-ply python3-pycparser python3-packaging \
+            llvm-18-dev clang-18 libclang-18-dev libclang-cpp18-dev libclc-18-dev libllvmspirvlib-18-dev \
+            spirv-tools spirv-headers glslang-tools libvulkan-dev \
+            libdrm-dev libwayland-dev wayland-protocols \
+            libx11-dev libx11-xcb-dev libxcb1-dev libxcb-dri2-0-dev libxcb-dri3-dev libxcb-present-dev \
+            libxcb-sync-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-randr0-dev libxshmfence-dev libxrandr-dev \
+            zlib1g-dev libzstd-dev libexpat1-dev libelf-dev
+          pip3 install --user --break-system-packages "meson>=1.4.0"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Get source (FristOneRR PanVK, tag v1.2.0-beta)
+        run: git clone --depth 1 --branch v1.2.0-beta https://github.com/FristOneRR-Admin/FristOneRR-Panvk-Source src
+
+      - name: Configure
+        working-directory: src
+        run: |
+          meson --version
+          meson setup build \
+            --prefix=/usr \
+            -Dbuildtype=release \
+            -Dplatforms=x11,wayland \
+            -Dvulkan-drivers=panfrost \
+            -Dpanfrost-kmds=kbase \
+            -Dgallium-drivers= \
+            -Dvulkan-layers= \
+            -Dopengl=false \
+            -Dgbm=disabled \
+            -Dglx=disabled \
+            -Degl=disabled \
+            -Dllvm=enabled \
+            -Dmesa-clc=enabled \
+            -Dprecomp-compiler=enabled \
+            -Dinstall-mesa-clc=false \
+            -Dinstall-precomp-compiler=false \
+            -Dshader-cache-default=true \
+            -Dvulkan-manifest-per-architecture=false \
+            -Dzlib=enabled \
+            -Dselinux=false \
+            -Dbuild-tests=false \
+            -Dpanfrost-rust=false
+
+      - name: Build
+        working-directory: src
+        run: ninja -C build
+
+      - name: Install into dist folder
+        working-directory: src
+        run: meson install -C build --destdir "$GITHUB_WORKSPACE/dist" --strip
+
+      - name: Show result
+        run: |
+          find dist -type f | sort
+          LIB=$(find dist -name 'libvulkan_panfrost.so' | head -n 1)
+          echo "Library: $LIB"
+          ldd "$LIB" || true
+          find dist -name '*.json' -exec cat {} \;
+
+      - name: Upload result
+        uses: actions/upload-artifact@v4
+        with:
+          name: panvk-linux-aarch64
+          path: dist
